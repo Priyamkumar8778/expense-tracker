@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Expense Tracker</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Expense Tracker Dashboard</h1>
+      <button onclick="logout()">Logout</button>
+
+      <div class="section">
+        <h2>Add Expense</h2>
+        <form id="expenseForm">
+          <label>
+            <input type="radio" name="dateOption" value="today" checked /> Add
+            for Today
+          </label>
+          <label>
+            <input type="radio" name="dateOption" value="custom" /> Add for
+            Custom Date
+          </label>
+          <input type="date" id="customDate" style="display: none" />
+          <input type="number" id="amount" placeholder="Amount" required />
+          <input
+            type="text"
+            id="description"
+            placeholder="Description (optional)"
+          />
+          <button type="submit">Add Expense</button>
+        </form>
+      </div>
+
+      <div class="section">
+        <h2>Your Expenses</h2>
+        <table id="expenseTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody id="expenseBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <script>
+      const API_BASE = "http://localhost:5000/api";
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        window.location.href = "login.html";
+      }
+
+      document.querySelectorAll('input[name="dateOption"]').forEach((radio) => {
+        radio.addEventListener("change", () => {
+          document.getElementById("customDate").style.display =
+            radio.value === "custom" ? "block" : "none";
+        });
+      });
+
+      document
+        .getElementById("expenseForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const dateOption = document.querySelector(
+            'input[name="dateOption"]:checked'
+          ).value;
+          const date =
+            dateOption === "today"
+              ? new Date().toISOString().split("T")[0]
+              : document.getElementById("customDate").value;
+          const amount = document.getElementById("amount").value;
+          const description = document.getElementById("description").value;
+          const res = await fetch(`${API_BASE}/expenses`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              amount: parseFloat(amount),
+              description,
+              date,
+            }),
+          });
+          if (res.ok) {
+            location.reload();
+          } else {
+            alert("Error adding expense");
+          }
+        });
+
+      async function loadExpenses() {
+        const res = await fetch(`${API_BASE}/expenses`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const tbody = document.getElementById("expenseBody");
+        tbody.innerHTML = "";
+        data.expenses.forEach((exp) => {
+          const row = `<tr><td>${new Date(
+            exp.date
+          ).toLocaleDateString()}</td><td>${exp.amount}</td></tr>`;
+          tbody.innerHTML += row;
+        });
+        const totalRow = `<tr><td><strong>Total</strong></td><td><strong>${data.total}</strong></td></tr>`;
+        tbody.innerHTML += totalRow;
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "login.html";
+      }
+
+      loadExpenses();
+    </script>
+  </body>
+</html>
